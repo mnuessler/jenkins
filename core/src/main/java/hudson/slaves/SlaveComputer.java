@@ -557,7 +557,6 @@ public class SlaveComputer extends Computer {
     public void doSlaveAgentJnlp(StaplerRequest req, StaplerResponse res) throws IOException, ServletException {
         RequestDispatcher view = req.getView(this, "slave-agent.jnlp.jelly");
         if ("true".equals(req.getParameter("encrypt"))) {
-            req.setAttribute("jnlpMac", "SLAVE_SECRET");
             final ByteArrayOutputStream baos = new ByteArrayOutputStream();
             StaplerResponse temp = new ResponseImpl(req.getStapler(), new HttpServletResponseWrapper(res) {
                 @Override public ServletOutputStream getOutputStream() throws IOException {
@@ -587,7 +586,6 @@ public class SlaveComputer extends Computer {
             res.getOutputStream().write(encrypted);
         } else {
             checkPermission(CONNECT);
-            req.setAttribute("jnlpMac", getJnlpMac());
             view.forward(req, res);
         }
     }
