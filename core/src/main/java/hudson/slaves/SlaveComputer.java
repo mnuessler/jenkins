@@ -24,6 +24,7 @@
 package hudson.slaves;
 
 import hudson.model.*;
+import hudson.util.IOException2;
 import hudson.util.IOUtils;
 import hudson.util.io.ReopenableRotatingFileOutputStream;
 import jenkins.model.Jenkins.MasterComputer;
@@ -47,6 +48,7 @@ import java.io.OutputStream;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.security.SecureRandom;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -64,6 +66,7 @@ import java.io.PrintWriter;
 import java.security.GeneralSecurityException;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.RequestDispatcher;
 import jenkins.model.Jenkins;
@@ -565,17 +568,22 @@ public class SlaveComputer extends Computer {
                 }
             });
             view.forward(req, temp);
+
+            byte[] iv = new byte[128/8];
+            new SecureRandom().nextBytes(iv);
+
             byte[] jnlpMac = JnlpSlaveAgentProtocol.SLAVE_SECRET.mac(getName().getBytes("UTF-8"));
             SecretKey key = new SecretKeySpec(jnlpMac, 0, /* export restrictions */ 128 / 8, "AES");
             byte[] encrypted;
             try {
-                Cipher c = Secret.getCipher("AES");
-                c.init(Cipher.ENCRYPT_MODE, key);
+                Cipher c = Secret.getCipher("AES/CFB8/NoPadding");
+                c.init(Cipher.ENCRYPT_MODE, key, new IvParameterSpec(iv));
                 encrypted = c.doFinal(baos.toByteArray());
             } catch (GeneralSecurityException x) {
-                throw new IOException(x);
+                throw new IOException2(x);
             }
             res.setContentType("application/octet-stream");
+            res.getOutputStream().write(iv);
             res.getOutputStream().write(encrypted);
         } else {
             checkPermission(CONNECT);
